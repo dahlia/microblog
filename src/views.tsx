@@ -33,6 +33,9 @@ export const SetupForm: FC = () => (
             pattern="^[a-z0-9_\-]+$"
           />
         </label>
+        <label>
+          Name <input type="text" name="name" required />
+        </label>
       </fieldset>
       <input type="submit" value="Setup" />
     </form>
