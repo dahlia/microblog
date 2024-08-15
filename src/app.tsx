@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import db from "./db.ts";
 import fedi from "./federation.ts";
 import type { User } from "./schema.ts";
-import { Layout, SetupForm } from "./views.tsx";
+import { Layout, Profile, SetupForm } from "./views.tsx";
 
 const logger = getLogger("microblog");
 
@@ -37,6 +37,21 @@ app.post("/setup", async (c) => {
   }
   db.prepare("INSERT INTO users (username) VALUES (?)").run(username);
   return c.redirect("/");
+});
+
+app.get("/users/:username", async (c) => {
+  const user = db
+    .prepare<unknown[], User>("SELECT * FROM users WHERE username = ?")
+    .get(c.req.param("username"));
+  if (user == null) return c.notFound();
+
+  const url = new URL(c.req.url);
+  const handle = `@${user.username}@${url.host}`;
+  return c.html(
+    <Layout>
+      <Profile name={user.username} handle={handle} />
+    </Layout>,
+  );
 });
 
 export default app;

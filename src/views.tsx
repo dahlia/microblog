@@ -38,3 +38,17 @@ export const SetupForm: FC = () => (
     </form>
   </>
 );
+
+export interface ProfileProps {
+  name: string;
+  handle: string;
+}
+
+export const Profile: FC<ProfileProps> = ({ name, handle }) => (
+  <>
+    <hgroup>
+      <h1>{name}</h1>
+      <p>{handle}</p>
+    </hgroup>
+  </>
+);
