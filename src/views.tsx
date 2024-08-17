@@ -51,7 +51,7 @@ export const Profile: FC<ProfileProps> = ({ name, handle }) => (
   <>
     <hgroup>
       <h1>{name}</h1>
-      <p>{handle}</p>
+      <p style="user-select: all;">{handle}</p>
     </hgroup>
   </>
 );
