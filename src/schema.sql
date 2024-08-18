@@ -22,3 +22,12 @@ CREATE TABLE IF NOT EXISTS actors (
   created          TEXT    NOT NULL DEFAULT (CURRENT_TIMESTAMP)
                                            CHECK (created <> '')
 );
+
+CREATE TABLE IF NOT EXISTS keys (
+  user_id     INTEGER NOT NULL REFERENCES users (id),
+  type        TEXT    NOT NULL CHECK (type IN ('RSASSA-PKCS1-v1_5', 'Ed25519')),
+  private_key TEXT    NOT NULL CHECK (private_key <> ''),
+  public_key  TEXT    NOT NULL CHECK (public_key <> ''),
+  created     TEXT    NOT NULL DEFAULT (CURRENT_TIMESTAMP) CHECK (created <> ''),
+  PRIMARY KEY (user_id, type)
+);
