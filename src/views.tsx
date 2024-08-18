@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import type { Actor } from "./schema.ts";
 
 export const Layout: FC = (props) => (
   <html lang="en">
@@ -44,14 +45,67 @@ export const SetupForm: FC = () => (
 
 export interface ProfileProps {
   name: string;
+  username: string;
   handle: string;
+  followers: number;
 }
 
-export const Profile: FC<ProfileProps> = ({ name, handle }) => (
+export const Profile: FC<ProfileProps> = ({
+  name,
+  username,
+  handle,
+  followers,
+}) => (
   <>
     <hgroup>
       <h1>{name}</h1>
-      <p style="user-select: all;">{handle}</p>
+      <p>
+        <span style="user-select: all;">{handle}</span> &middot;{" "}
+        <a href={`/users/${username}/followers`}>
+          {followers === 1 ? "1 follower" : `${followers} followers`}
+        </a>
+      </p>
     </hgroup>
   </>
 );
+
+export interface FollowerListProps {
+  followers: Actor[];
+}
+
+export const FollowerList: FC<FollowerListProps> = ({ followers }) => (
+  <>
+    <h2>Followers</h2>
+    <ul>
+      {followers.map((follower) => (
+        <li key={follower.id}>
+          <ActorLink actor={follower} />
+        </li>
+      ))}
+    </ul>
+  </>
+);
+
+export interface ActorLinkProps {
+  actor: Actor;
+}
+
+export const ActorLink: FC<ActorLinkProps> = ({ actor }) => {
+  const href = actor.url ?? actor.uri;
+  return actor.name == null ? (
+    <a href={href} class="secondary">
+      {actor.handle}
+    </a>
+  ) : (
+    <>
+      <a href={href}>{actor.name}</a>{" "}
+      <small>
+        (
+        <a href={href} class="secondary">
+          {actor.handle}
+        </a>
+        )
+      </small>
+    </>
+  );
+};
