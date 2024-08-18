@@ -22,3 +22,9 @@ export interface Key {
   public_key: string;
   created: string;
 }
+
+export interface Follow {
+  following_id: number;
+  follower_id: number;
+  created: string;
+}

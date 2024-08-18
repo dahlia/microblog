@@ -1,9 +1,12 @@
 import {
+  Accept,
   Endpoints,
+  Follow,
   Person,
   createFederation,
   exportJwk,
   generateCryptoKeyPair,
+  getActorHandle,
   importJwk,
 } from "@fedify/fedify";
 import { InProcessMessageQueue, MemoryKvStore } from "@fedify/fedify";
@@ -95,4 +98,78 @@ federation
     return pairs;
   });
 
-federation.setInboxListeners("/users/{handle}/inbox", "/inbox");
+federation
+  .setInboxListeners("/users/{handle}/inbox", "/inbox")
+  .on(Follow, async (ctx, follow) => {
+    if (follow.objectId == null) {
+      logger.debug("The Follow object does not have an object: {follow}", {
+        follow,
+      });
+      return;
+    }
+    const object = ctx.parseUri(follow.objectId);
+    if (object == null || object.type !== "actor") {
+      logger.debug("The Follow object's object is not an actor: {follow}", {
+        follow,
+      });
+      return;
+    }
+    const follower = await follow.getActor();
+    if (follower?.id == null || follower.inboxId == null) {
+      logger.debug("The Follow object does not have an actor: {follow}", {
+        follow,
+      });
+      return;
+    }
+    const following_id = db
+      .prepare<unknown[], Actor>(
+        `
+        SELECT * FROM actors
+        JOIN users ON users.id = actors.user_id
+        WHERE users.username = ?
+        `,
+      )
+      .get(object.handle)?.id;
+    if (following_id == null) {
+      logger.debug(
+        "Failed to find the actor to follow in the database: {object}",
+        { object },
+      );
+    }
+    const follower_id = db
+      .prepare<unknown[], Actor>(
+        `
+        -- Insert or update the follower actor
+        INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (uri) DO UPDATE SET
+          handle = excluded.handle,
+          name = excluded.name,
+          inbox_url = excluded.inbox_url,
+          shared_inbox_url = excluded.shared_inbox_url,
+          url = excluded.url
+        WHERE
+          actors.uri = excluded.uri
+        RETURNING *
+        `,
+      )
+      .get(
+        follower.id.href,
+        await getActorHandle(follower),
+        follower.name?.toString(),
+        follower.inboxId.href,
+        follower.endpoints?.sharedInbox?.href,
+        follower.url?.href,
+      )?.id;
+    db.prepare(
+      "INSERT INTO follows (following_id, follower_id) VALUES (?, ?)",
+    ).run(following_id, follower_id);
+    const accept = new Accept({
+      actor: follow.objectId,
+      to: follow.actorId,
+      object: follow,
+    });
+    await ctx.sendActivity(object, follower, accept);
+  });
+
+export default federation;
