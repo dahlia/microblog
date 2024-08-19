@@ -9,6 +9,7 @@ import {
   generateCryptoKeyPair,
   getActorHandle,
   importJwk,
+  type Recipient,
 } from "@fedify/fedify";
 import { InProcessMessageQueue, MemoryKvStore } from "@fedify/fedify";
 import { getLogger } from "@logtape/logtape";
@@ -44,6 +45,7 @@ federation
       endpoints: new Endpoints({
         sharedInbox: ctx.getInboxUri(),
       }),
+      followers: ctx.getFollowersUri(handle),
       url: ctx.getActorUri(handle),
       publicKey: keys[0].cryptographicKey,
       assertionMethods: keys.map((k) => k.multikey),
@@ -189,6 +191,49 @@ federation
       ) AND follower_id = (SELECT id FROM actors WHERE uri = ?)
       `,
     ).run(parsed.handle, undo.actorId.href);
+  });
+
+federation
+  .setFollowersDispatcher(
+    "/users/{handle}/followers",
+    (ctx, handle, cursor) => {
+      const followers = db
+        .prepare<unknown[], Actor>(
+          `
+        SELECT followers.*
+        FROM follows
+        JOIN actors AS followers ON follows.follower_id = followers.id
+        JOIN actors AS following ON follows.following_id = following.id
+        JOIN users ON users.id = following.user_id
+        WHERE users.username = ?
+        ORDER BY follows.created DESC
+        `,
+        )
+        .all(handle);
+      const items: Recipient[] = followers.map((f) => ({
+        id: new URL(f.uri),
+        inboxId: new URL(f.inbox_url),
+        endpoints:
+          f.shared_inbox_url == null
+            ? null
+            : { sharedInbox: new URL(f.shared_inbox_url) },
+      }));
+      return { items };
+    },
+  )
+  .setCounter((ctx, handle) => {
+    const result = db
+      .prepare<unknown[], { cnt: number }>(
+        `
+        SELECT count(*) AS cnt
+        FROM follows
+        JOIN actors ON actors.id = follows.following_id
+        JOIN users ON users.id = actors.user_id
+        WHERE users.username = ?
+        `,
+      )
+      .get(handle);
+    return result == null ? 0 : result.cnt;
   });
 
 export default federation;
