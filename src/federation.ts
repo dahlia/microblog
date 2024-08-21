@@ -3,6 +3,7 @@ import {
   Endpoints,
   Follow,
   Note,
+  PUBLIC_COLLECTION,
   Person,
   Undo,
   createFederation,
@@ -13,9 +14,11 @@ import {
   type Recipient,
 } from "@fedify/fedify";
 import { InProcessMessageQueue, MemoryKvStore } from "@fedify/fedify";
+import { Temporal } from "@js-temporal/polyfill";
 import { getLogger } from "@logtape/logtape";
+import { stringifyEntities } from "stringify-entities";
 import db from "./db.ts";
-import type { Actor, Key, User } from "./schema.ts";
+import type { Actor, Key, Post, User } from "./schema.ts";
 
 const logger = getLogger("microblog");
 
@@ -241,7 +244,28 @@ federation.setObjectDispatcher(
   Note,
   "/users/{handle}/posts/{id}",
   (ctx, values) => {
-    return null;
+    const post = db
+      .prepare<unknown[], Post>(
+        `
+        SELECT posts.*
+        FROM posts
+        JOIN actors ON actors.id = posts.actor_id
+        JOIN users ON users.id = actors.user_id
+        WHERE users.username = ? AND posts.id = ?
+        `,
+      )
+      .get(values.handle, values.id);
+    if (post == null) return null;
+    return new Note({
+      id: ctx.getObjectUri(Note, values),
+      attribution: ctx.getActorUri(values.handle),
+      to: PUBLIC_COLLECTION,
+      cc: ctx.getFollowersUri(values.handle),
+      content: stringifyEntities(post.content, { escapeOnly: true }),
+      mediaType: "text/html",
+      published: Temporal.Instant.from(`${post.created.replace(" ", "T")}Z`),
+      url: ctx.getObjectUri(Note, values),
+    });
   },
 );
 
