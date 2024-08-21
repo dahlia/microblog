@@ -28,3 +28,12 @@ export interface Follow {
   follower_id: number;
   created: string;
 }
+
+export interface Post {
+  id: number;
+  uri: string;
+  actor_id: number;
+  content: string;
+  url: string | null;
+  created: string;
+}
