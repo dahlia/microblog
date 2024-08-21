@@ -13,7 +13,7 @@ import {
   Profile,
   SetupForm,
 } from "./views.tsx";
-import { Note } from "@fedify/fedify";
+import { Create, Note } from "@fedify/fedify";
 
 const logger = getLogger("microblog");
 
@@ -195,7 +195,7 @@ app.post("/users/:username/posts", async (c) => {
     return c.text("Content is required", 400);
   }
   const ctx = fedi.createContext(c.req.raw, undefined);
-  const url: string | null = db.transaction(() => {
+  const post: Post | null = db.transaction(() => {
     const post = db
       .prepare<unknown[], Post>(
         `
@@ -215,10 +215,23 @@ app.post("/users/:username/posts", async (c) => {
       url,
       post.id,
     );
-    return url;
+    return post;
   })();
-  if (url == null) return c.text("Failed to create post", 500);
-  return c.redirect(url);
+  if (post == null) return c.text("Failed to create post", 500);
+  const noteArgs = { handle: username, id: post.id.toString() };
+  const note = await ctx.getObject(Note, noteArgs);
+  await ctx.sendActivity(
+    { handle: username },
+    "followers",
+    new Create({
+      id: new URL("#activity", note?.id ?? undefined),
+      object: note,
+      actors: note?.attributionIds,
+      tos: note?.toIds,
+      ccs: note?.ccIds,
+    }),
+  );
+  return c.redirect(ctx.getObjectUri(Note, noteArgs).href);
 });
 
 app.get("/users/:username/posts/:id", (c) => {
