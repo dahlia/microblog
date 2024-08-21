@@ -168,3 +168,17 @@ export const PostView: FC<PostViewProps> = ({ post }) => (
     </footer>
   </article>
 );
+
+export interface PostListProps {
+  posts: (Post & Actor)[];
+}
+
+export const PostList: FC<PostListProps> = ({ posts }) => (
+  <>
+    {posts.map((post) => (
+      <div key={post.id}>
+        <PostView post={post} />
+      </div>
+    ))}
+  </>
+);
