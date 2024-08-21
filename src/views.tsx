@@ -1,5 +1,5 @@
 import type { FC } from "hono/jsx";
-import type { Actor, User } from "./schema.ts";
+import type { Actor, Post, User } from "./schema.ts";
 
 export const Layout: FC = (props) => (
   <html lang="en">
@@ -81,7 +81,9 @@ export const Profile: FC<ProfileProps> = ({
 }) => (
   <>
     <hgroup>
-      <h1>{name}</h1>
+      <h1>
+        <a href={`/users/${username}`}>{name}</a>
+      </h1>
       <p>
         <span style="user-select: all;">{handle}</span> &middot;{" "}
         <a href={`/users/${username}/followers`}>
@@ -132,3 +134,37 @@ export const ActorLink: FC<ActorLinkProps> = ({ actor }) => {
     </>
   );
 };
+
+export interface PostPageProps extends ProfileProps, PostViewProps {}
+
+export const PostPage: FC<PostPageProps> = (props) => (
+  <>
+    <Profile
+      name={props.name}
+      username={props.username}
+      handle={props.handle}
+      followers={props.followers}
+    />
+    <PostView post={props.post} />
+  </>
+);
+
+export interface PostViewProps {
+  post: Post & Actor;
+}
+
+export const PostView: FC<PostViewProps> = ({ post }) => (
+  <article>
+    <header>
+      <ActorLink actor={post} />
+    </header>
+    <p>{post.content}</p>
+    <footer>
+      <a href={post.url ?? post.uri}>
+        <time datetime={new Date(post.created).toISOString()}>
+          {post.created}
+        </time>
+      </a>
+    </footer>
+  </article>
+);
