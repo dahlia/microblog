@@ -3,8 +3,9 @@ import { getLogger } from "@logtape/logtape";
 import { Hono } from "hono";
 import db from "./db.ts";
 import fedi from "./federation.ts";
-import type { Actor, User } from "./schema.ts";
+import type { Actor, Post, User } from "./schema.ts";
 import { FollowerList, Home, Layout, Profile, SetupForm } from "./views.tsx";
+import { Note } from "@fedify/fedify";
 
 const logger = getLogger("microblog");
 
@@ -153,6 +154,51 @@ app.get("/users/:username/followers", async (c) => {
       <FollowerList followers={followers} />
     </Layout>,
   );
+});
+
+app.post("/users/:username/posts", async (c) => {
+  const username = c.req.param("username");
+  const actor = db
+    .prepare<unknown[], Actor>(
+      `
+      SELECT actors.*
+      FROM actors
+      JOIN users ON users.id = actors.user_id
+      WHERE users.username = ?
+      `,
+    )
+    .get(username);
+  if (actor == null) return c.redirect("/setup");
+  const form = await c.req.formData();
+  const content = form.get("content")?.toString();
+  if (content == null || content.trim() === "") {
+    return c.text("Content is required", 400);
+  }
+  const ctx = fedi.createContext(c.req.raw, undefined);
+  const url: string | null = db.transaction(() => {
+    const post = db
+      .prepare<unknown[], Post>(
+        `
+        INSERT INTO posts (uri, actor_id, content)
+        VALUES ('https://localhost/', ?, ?)
+        RETURNING *
+        `,
+      )
+      .get(actor.id, content);
+    if (post == null) return null;
+    const url = ctx.getObjectUri(Note, {
+      handle: username,
+      id: post.id.toString(),
+    }).href;
+    db.prepare("UPDATE posts SET uri = ?, url = ? WHERE id = ?").run(
+      url,
+      url,
+      post.id,
+    );
+    return url;
+  })();
+  if (url == null) return c.text("Failed to create post", 500);
+  return c.redirect(url);
 });
 
 export default app;

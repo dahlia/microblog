@@ -2,6 +2,7 @@ import {
   Accept,
   Endpoints,
   Follow,
+  Note,
   Person,
   Undo,
   createFederation,
@@ -235,5 +236,13 @@ federation
       .get(handle);
     return result == null ? 0 : result.cnt;
   });
+
+federation.setObjectDispatcher(
+  Note,
+  "/users/{handle}/posts/{id}",
+  (ctx, values) => {
+    return null;
+  },
+);
 
 export default federation;
