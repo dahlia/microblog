@@ -1,6 +1,7 @@
 import { federation } from "@fedify/fedify/x/hono";
 import { getLogger } from "@logtape/logtape";
 import { Hono } from "hono";
+import { stringifyEntities } from "stringify-entities";
 import db from "./db.ts";
 import fedi from "./federation.ts";
 import type { Actor, Post, User } from "./schema.ts";
@@ -25,7 +26,8 @@ app.get("/", (c) => {
   const user = db
     .prepare<unknown[], User & Actor>(
       `
-      SELECT * FROM users
+      SELECT users.*, actors.*
+      FROM users
       JOIN actors ON users.id = actors.user_id
       LIMIT 1
       `,
@@ -33,9 +35,24 @@ app.get("/", (c) => {
     .get();
   if (user == null) return c.redirect("/setup");
 
+  const posts = db
+    .prepare<unknown[], Post & Actor>(
+      `
+      SELECT actors.*, posts.*
+      FROM posts
+      JOIN actors ON posts.actor_id = actors.id
+      WHERE posts.actor_id = ? OR posts.actor_id IN (
+        SELECT following_id
+        FROM follows
+        WHERE follower_id = ?
+      )
+      ORDER BY posts.created DESC
+      `,
+    )
+    .all(user.id, user.id);
   return c.html(
     <Layout>
-      <Home user={user} />
+      <Home user={user} posts={posts} />
     </Layout>,
   );
 });
@@ -262,7 +279,7 @@ app.post("/users/:username/posts", async (c) => {
         RETURNING *
         `,
       )
-      .get(actor.id, content);
+      .get(actor.id, stringifyEntities(content, { escapeOnly: true }));
     if (post == null) return null;
     const url = ctx.getObjectUri(Note, {
       handle: username,

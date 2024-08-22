@@ -19,11 +19,11 @@ export const Layout: FC = (props) => (
   </html>
 );
 
-export interface HomeProps {
+export interface HomeProps extends PostListProps {
   user: User & Actor;
 }
 
-export const Home: FC<HomeProps> = ({ user }) => (
+export const Home: FC<HomeProps> = ({ user, posts }) => (
   <>
     <hgroup>
       <h1>{user.name}'s microblog</h1>
@@ -51,6 +51,7 @@ export const Home: FC<HomeProps> = ({ user }) => (
       </fieldset>
       <input type="submit" value="Post" />
     </form>
+    <PostList posts={posts} />
   </>
 );
 
@@ -192,7 +193,8 @@ export const PostView: FC<PostViewProps> = ({ post }) => (
     <header>
       <ActorLink actor={post} />
     </header>
-    <p>{post.content}</p>
+    {/* biome-ignore lint/security/noDangerouslySetInnerHtml: */}
+    <div dangerouslySetInnerHTML={{ __html: post.content }} />
     <footer>
       <a href={post.url ?? post.uri}>
         <time datetime={new Date(post.created).toISOString()}>

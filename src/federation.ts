@@ -18,7 +18,6 @@ import {
 import { InProcessMessageQueue, MemoryKvStore } from "@fedify/fedify";
 import { Temporal } from "@js-temporal/polyfill";
 import { getLogger } from "@logtape/logtape";
-import { stringifyEntities } from "stringify-entities";
 import db from "./db.ts";
 import type { Actor, Key, Post, User } from "./schema.ts";
 
@@ -265,7 +264,7 @@ federation.setObjectDispatcher(
       attribution: ctx.getActorUri(values.handle),
       to: PUBLIC_COLLECTION,
       cc: ctx.getFollowersUri(values.handle),
-      content: stringifyEntities(post.content, { escapeOnly: true }),
+      content: post.content,
       mediaType: "text/html",
       published: Temporal.Instant.from(`${post.created.replace(" ", "T")}Z`),
       url: ctx.getObjectUri(Note, values),
