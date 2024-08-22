@@ -17,6 +17,7 @@
   },
   "scripts": {
     "dev": "tsx watch ./src/index.ts",
-    "prod": "node --import tsx ./src/index.ts"
+    "prod": "node --import tsx ./src/index.ts",
+    "createdb": "sqlite3 microblog.sqlite3 < src/schema.sql"
   }
 }
