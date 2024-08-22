@@ -13,7 +13,7 @@ import {
   Profile,
   SetupForm,
 } from "./views.tsx";
-import { Create, Note } from "@fedify/fedify";
+import { Create, Follow, isActor, lookupObject, Note } from "@fedify/fedify";
 
 const logger = getLogger("microblog");
 
@@ -153,6 +153,30 @@ app.get("/users/:username", async (c) => {
       <PostList posts={posts} />
     </Layout>,
   );
+});
+
+app.post("/users/:username/following", async (c) => {
+  const username = c.req.param("username");
+  const form = await c.req.formData();
+  const handle = form.get("actor");
+  if (typeof handle !== "string") {
+    return c.text("Invalid actor handle or URL", 400);
+  }
+  const actor = await lookupObject(handle);
+  if (!isActor(actor)) {
+    return c.text("Invalid actor handle or URL", 400);
+  }
+  const ctx = fedi.createContext(c.req.raw, undefined);
+  await ctx.sendActivity(
+    { handle: username },
+    actor,
+    new Follow({
+      actor: ctx.getActorUri(username),
+      object: actor.id,
+      to: actor.id,
+    }),
+  );
+  return c.text("Successfully sent a follow request");
 });
 
 app.get("/users/:username/followers", async (c) => {
