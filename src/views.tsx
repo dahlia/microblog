@@ -31,6 +31,18 @@ export const Home: FC<HomeProps> = ({ user }) => (
         <a href={`/users/${user.username}`}>{user.name}'s profile</a>
       </p>
     </hgroup>
+    <form method="post" action={`/users/${user.username}/following`}>
+      {/* biome-ignore lint/a11y/noRedundantRoles: required by picocss */}
+      <fieldset role="group">
+        <input
+          type="text"
+          name="actor"
+          required={true}
+          placeholder="Enter an actor handle (e.g., @johndoe@mastodon.com) or URI (e.g., https://mastodon.com/@johndoe)"
+        />
+        <input type="submit" value="Follow" />
+      </fieldset>
+    </form>
     <form method="post" action={`/users/${user.username}/posts`}>
       <fieldset>
         <label>
