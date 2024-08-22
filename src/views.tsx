@@ -82,6 +82,7 @@ export interface ProfileProps {
   name: string;
   username: string;
   handle: string;
+  following: number;
   followers: number;
 }
 
@@ -89,6 +90,7 @@ export const Profile: FC<ProfileProps> = ({
   name,
   username,
   handle,
+  following,
   followers,
 }) => (
   <>
@@ -98,11 +100,30 @@ export const Profile: FC<ProfileProps> = ({
       </h1>
       <p>
         <span style="user-select: all;">{handle}</span> &middot;{" "}
+        <a href={`/users/${username}/following`}>{following} following</a>{" "}
+        &middot;{" "}
         <a href={`/users/${username}/followers`}>
           {followers === 1 ? "1 follower" : `${followers} followers`}
         </a>
       </p>
     </hgroup>
+  </>
+);
+
+export interface FollowingListProps {
+  following: Actor[];
+}
+
+export const FollowingList: FC<FollowingListProps> = ({ following }) => (
+  <>
+    <h2>Following</h2>
+    <ul>
+      {following.map((actor) => (
+        <li key={actor.id}>
+          <ActorLink actor={actor} />
+        </li>
+      ))}
+    </ul>
   </>
 );
 
@@ -155,6 +176,7 @@ export const PostPage: FC<PostPageProps> = (props) => (
       name={props.name}
       username={props.username}
       handle={props.handle}
+      following={props.following}
       followers={props.followers}
     />
     <PostView post={props.post} />
