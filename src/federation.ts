@@ -30,7 +30,7 @@ const federation = createFederation({
 });
 
 federation
-  .setActorDispatcher("/users/{handle}", async (ctx, handle) => {
+  .setActorDispatcher("/users/{identifier}", async (ctx, identifier) => {
     const user = db
       .prepare<unknown[], User & Actor>(
         `
@@ -39,28 +39,28 @@ federation
         WHERE users.username = ?
         `,
       )
-      .get(handle);
+      .get(identifier);
     if (user == null) return null;
 
-    const keys = await ctx.getActorKeyPairs(handle);
+    const keys = await ctx.getActorKeyPairs(identifier);
     return new Person({
-      id: ctx.getActorUri(handle),
-      preferredUsername: handle,
+      id: ctx.getActorUri(identifier),
+      preferredUsername: identifier,
       name: user.name,
-      inbox: ctx.getInboxUri(handle),
+      inbox: ctx.getInboxUri(identifier),
       endpoints: new Endpoints({
         sharedInbox: ctx.getInboxUri(),
       }),
-      followers: ctx.getFollowersUri(handle),
-      url: ctx.getActorUri(handle),
+      followers: ctx.getFollowersUri(identifier),
+      url: ctx.getActorUri(identifier),
       publicKey: keys[0].cryptographicKey,
       assertionMethods: keys.map((k) => k.multikey),
     });
   })
-  .setKeyPairsDispatcher(async (ctx, handle) => {
+  .setKeyPairsDispatcher(async (ctx, identifier) => {
     const user = db
       .prepare<unknown[], User>("SELECT * FROM users WHERE username = ?")
-      .get(handle);
+      .get(identifier);
     if (user == null) return [];
     const rows = db
       .prepare<unknown[], Key>("SELECT * FROM keys WHERE keys.user_id = ?")
@@ -75,8 +75,8 @@ federation
     for (const keyType of ["RSASSA-PKCS1-v1_5", "Ed25519"] as const) {
       if (keys[keyType] == null) {
         logger.debug(
-          "The user {handle} does not have an {keyType} key; creating one...",
-          { handle, keyType },
+          "The user {identifier} does not have an {keyType} key; creating one...",
+          { identifier, keyType },
         );
         const { privateKey, publicKey } = await generateCryptoKeyPair(keyType);
         db.prepare(
@@ -108,7 +108,7 @@ federation
   });
 
 federation
-  .setInboxListeners("/users/{handle}/inbox", "/inbox")
+  .setInboxListeners("/users/{identifier}/inbox", "/inbox")
   .on(Follow, async (ctx, follow) => {
     if (follow.objectId == null) {
       logger.debug("The Follow object does not have an object: {follow}", {
@@ -138,7 +138,7 @@ federation
         WHERE users.username = ?
         `,
       )
-      .get(object.handle)?.id;
+      .get(object.identifier)?.id;
     if (following_id == null) {
       logger.debug(
         "Failed to find the actor to follow in the database: {object}",
@@ -172,7 +172,7 @@ federation
         WHERE users.username = ?
       ) AND follower_id = (SELECT id FROM actors WHERE uri = ?)
       `,
-    ).run(parsed.handle, undo.actorId.href);
+    ).run(parsed.identifier, undo.actorId.href);
   })
   .on(Accept, async (ctx, accept) => {
     const follow = await accept.getObject();
@@ -198,7 +198,7 @@ federation
         )
       )
       `,
-    ).run(followingId, parsed.handle);
+    ).run(followingId, parsed.identifier);
   })
   .on(Create, async (ctx, create) => {
     const object = await create.getObject();
@@ -218,8 +218,8 @@ federation
 
 federation
   .setFollowersDispatcher(
-    "/users/{handle}/followers",
-    (ctx, handle, cursor) => {
+    "/users/{identifier}/followers",
+    (ctx, identifier, cursor) => {
       const followers = db
         .prepare<unknown[], Actor>(
           `
@@ -232,7 +232,7 @@ federation
         ORDER BY follows.created DESC
         `,
         )
-        .all(handle);
+        .all(identifier);
       const items: Recipient[] = followers.map((f) => ({
         id: new URL(f.uri),
         inboxId: new URL(f.inbox_url),
@@ -244,7 +244,7 @@ federation
       return { items };
     },
   )
-  .setCounter((ctx, handle) => {
+  .setCounter((ctx, identifier) => {
     const result = db
       .prepare<unknown[], { cnt: number }>(
         `
@@ -255,13 +255,13 @@ federation
         WHERE users.username = ?
         `,
       )
-      .get(handle);
+      .get(identifier);
     return result == null ? 0 : result.cnt;
   });
 
 federation.setObjectDispatcher(
   Note,
-  "/users/{handle}/posts/{id}",
+  "/users/{identifier}/posts/{id}",
   (ctx, values) => {
     const post = db
       .prepare<unknown[], Post>(
@@ -273,13 +273,13 @@ federation.setObjectDispatcher(
         WHERE users.username = ? AND posts.id = ?
         `,
       )
-      .get(values.handle, values.id);
+      .get(values.identifier, values.id);
     if (post == null) return null;
     return new Note({
       id: ctx.getObjectUri(Note, values),
-      attribution: ctx.getActorUri(values.handle),
+      attribution: ctx.getActorUri(values.identifier),
       to: PUBLIC_COLLECTION,
-      cc: ctx.getFollowersUri(values.handle),
+      cc: ctx.getFollowersUri(values.identifier),
       content: post.content,
       mediaType: "text/html",
       published: Temporal.Instant.from(`${post.created.replace(" ", "T")}Z`),

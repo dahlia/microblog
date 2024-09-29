@@ -198,7 +198,7 @@ app.post("/users/:username/following", async (c) => {
   }
   const ctx = fedi.createContext(c.req.raw, undefined);
   await ctx.sendActivity(
-    { handle: username },
+    { identifier: username },
     actor,
     new Follow({
       actor: ctx.getActorUri(username),
@@ -282,7 +282,7 @@ app.post("/users/:username/posts", async (c) => {
       .get(actor.id, stringifyEntities(content, { escapeOnly: true }));
     if (post == null) return null;
     const url = ctx.getObjectUri(Note, {
-      handle: username,
+      identifier: username,
       id: post.id.toString(),
     }).href;
     db.prepare("UPDATE posts SET uri = ?, url = ? WHERE id = ?").run(
@@ -293,10 +293,10 @@ app.post("/users/:username/posts", async (c) => {
     return post;
   })();
   if (post == null) return c.text("Failed to create post", 500);
-  const noteArgs = { handle: username, id: post.id.toString() };
+  const noteArgs = { identifier: username, id: post.id.toString() };
   const note = await ctx.getObject(Note, noteArgs);
   await ctx.sendActivity(
-    { handle: username },
+    { identifier: username },
     "followers",
     new Create({
       id: new URL("#activity", note?.id ?? undefined),
